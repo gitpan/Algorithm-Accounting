@@ -8,6 +8,7 @@ version_from    ('lib/Algorithm/Accounting.pm');
 requires        ('Spiffy');
 requires        ('Perl6::Form');
 requires        ('Array::Compare');
+requires        ('List::Util');
 build_requires  ('Test::More');
 
 

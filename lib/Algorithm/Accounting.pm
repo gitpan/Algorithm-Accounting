@@ -4,9 +4,10 @@ use warnings;
 use Spiffy '-Base';
 use Perl6::Form;
 use Array::Compare;
+use List::Util qw(sum);
 use List::Permutor::LOL;
 use FreezeThaw qw(freeze thaw);
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 field fields            => [];
 field _occurrence_array => [];
@@ -79,9 +80,18 @@ sub _update_group_field {
     my @index = $self->_position_of($self->fields,$groups->[$i]);
     for my $row (@$data) {
       my $permutor = List::Permutor::LOL->new([@$row[@index]]);
+      my %exclude;
       while(my $permutation = $permutor->next) {
-	my @_row = map {(ref($_) ? $_->[0] : $_) || ''} @$permutation;
-	$gocc->[$i]->{freeze(@_row)}++;
+	# Somehow the permutor return empty list, so it's skipped
+	my @_row = map {(ref($_) ? $_->[0] : $_) || next} @$permutation;
+	my $__row = freeze(@_row);
+
+	# One value-tuple would shows only one time,
+	# So it's excluded upon extra permutations.
+	unless($exclude{$__row}) {
+	  $gocc->[$i]->{freeze(@_row)}++;
+	  $exclude{$__row}++;
+	}
       }
     }
   }
@@ -114,7 +124,7 @@ sub _update_single_field {
 sub _report_occurrence_percentage {
   my $field = shift;
   my $occ  = $self->_occurrence_hash->{$field};
-  my $rows = sub {my $r; for(@_) {$r+=$_} $r}->(values %$occ);
+  my $rows = sum(values %$occ);
   print form
     "+===========================================+",
     "| {>>>>>>>>>>>>>>>>>>>>>>>>} | {>>>>>>>>>>} |",
@@ -124,7 +134,7 @@ sub _report_occurrence_percentage {
   for(sort {$occ->{$b} <=> $occ->{$a} } keys %$occ) {
     print form
       "| {>>>>>>>>>>>>>>>>>>>>>>>>} | {>>>>>>>>.}% |",
-	$_,     (100 * $occ->{$_} / $rows) ;
+	$_, (100 * $occ->{$_} / $rows) ;
   }
   print form "+===========================================+";
 }
@@ -133,7 +143,7 @@ sub _report_field_group_occurrence_percentage {
   my $i = shift; # Only the i-th field group
   my @field = @{$self->field_groups->[$i]};
   my $occ  = $self->_group_occurrence->[$i];
-  my $rows = sub {my $r; for(@_) {$r+=$_} $r}->(values %$occ);
+  my $rows = sum(values %$occ);
   local $, = ',';
 
   my $form_format = '|' . join('|',map {'{<<<<<<<<<<<<}'} @field) . '|{>>>>>>>>>>}|';
@@ -147,6 +157,7 @@ sub _report_field_group_occurrence_percentage {
       @fv, (100 * $occ->{$_} / $rows);
   }
   print form $sep;
+  print STDERR "[$rows]\n";
 }
 
 # Find the position of wanted values in an array
