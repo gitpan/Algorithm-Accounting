@@ -2,7 +2,8 @@ package Algorithm::Accounting;
 use strict;
 use warnings;
 use Spiffy '-Base';
-our $VERSION = '0.01';
+use Perl6::Form;
+our $VERSION = '0.02';
 
 field fields            => [];
 field _occurrence_array => [];
@@ -31,7 +32,11 @@ sub append_data {
     my $occ = $aocc->[$i] || {};
     for(@$data) {
       last unless exists $_->[$i];
-      $occ->{$_->[$i]}++;
+      if('ARRAY' eq ref($_->[$i])) {
+	for my $v (@{$_->[$i]}) {$occ->{$v}++}
+      } else {
+        $occ->{$_->[$i]}++;
+      }
     }
     $aocc->[$i] = $occ;
     $hocc->{$fields->[$i]} = $occ;
@@ -41,20 +46,30 @@ sub append_data {
 }
 
 sub report {
-  for(@{$self->_occurrence_array}) {
-    print "-" x 72 . "\n";
-    print $self->_report_occurrence_percentage($_);
-    print "-" x 72 . "\n";
+  for(keys %{$self->_occurrence_hash}) {
+    $self->_report_occurrence_percentage($_);
   }
 }
 
 # Do I really have to named it so ?
 sub _report_occurrence_percentage {
-  my $occ  = shift;
+  my $field = shift;
+  my $occ  = $self->_occurrence_hash->{$field};
   my $rows = sub {my $r; for(@_) {$r+=$_} $r}->(values %$occ);
+  print form
+    "+===========================================+",
+    "| Field: {<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<} |",
+    $field,
+    "| {>>>>>>>>>>>>>>>>>>>>>>>>} | {>>>>>>>>>>} |",
+    'Value',                         'Percentage',
+    "+===========================================+";
+
   for(sort {$occ->{$b} <=> $occ->{$a} } keys %$occ) {
-    printf("%16s : %5.2f%%\n",$_, 100* $occ->{$_} / $rows );
+    print form
+      "| {>>>>>>>>>>>>>>>>>>>>>>>>} | {>>>>>>>>.}% |",
+	$_,     (100 * $occ->{$_} / $rows) ;
   }
+  print form "+===========================================+";
 }
 
 1;
@@ -73,6 +88,7 @@ __END__
 	[2, 'bob',   '/foo.txt', '2004-05-03' ],
 	[3, 'alice', '/foo.txt', '2004-05-04' ],
 	[4, 'john ', '/foo.txt', '2004-05-04' ],
+	[5, 'john ', [qw(/foo.txt /bar.txt], '2004-05-04' ],
   ];
 
   my $acc = Algorithm::Accounting->new();
@@ -95,10 +111,9 @@ __END__
 
 =head1 DESCRIPTION
 
-C<Algorithm::Accounting> provide simple aggregation method to make
-log accounting easier. It accpes data in rows, each rows can have
-many fields, and each field is a scalar (In the future, it's planned
-to let the value in fields could be a list).
+C<Algorithm::Accounting> provide simple aggregation method to make log
+accounting easier. It accepts data in rows, each rows can have many
+fields, and each field is a scalar or a list(arrayref).
 
 The basic usage is you walk through all your logs, and use append_data()
 to insert each rows, (you'll have to split the line into fields),

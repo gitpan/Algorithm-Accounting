@@ -1,5 +1,5 @@
 name: Algorithm-Accounting
-version: 0.01
+version: 0.02
 abstract: Generate accounting statistic for general logs
 author: Kang-min Liu <gugod@gugod.org>
 license: perl
@@ -8,6 +8,7 @@ build_requires:
   Test::More: 0
 requires:
   Spiffy: 0
+  Perl6::Form: 0
 no_index:
   directory:
     - inc
