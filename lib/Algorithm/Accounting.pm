@@ -1,42 +1,38 @@
 package Algorithm::Accounting;
-use strict;
-use warnings;
-use Spiffy '-Base';
-use Perl6::Form;
+use Spiffy -Base;
 use Array::Compare;
-use List::Util qw(sum);
 use FreezeThaw qw(freeze thaw);
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
-field fields            => [];
-field _occurrence_array => [];
-field _occurrence_hash  => {};
+field fields           => [];
+field occurrence_array => [];
+field occurrence_hash  => {};
 
 # arrayref of arrayref
-field field_groups      => [];
+field field_groups     => [];
 
 # array of hashref, but the key of hashref is
 # in serialized(freezed) form.
-field _group_occurrence => [];
+field group_occurrence => [];
 
 sub reset {
   $self->fields([]);
   $self->field_groups([]);
-  $self->_occurrence_array([]);
-  $self->_occurrence_hash({});
+  $self->occurrence_array([]);
+  $self->occurrence_hash({});
 }
 
 sub result {
   my $field = shift;
   if($field && grep /^$field$/,@{$self->fields}) {
-    return $self->_occurrence_hash->{$field};
+    return $self->occurrence_hash->{$field};
   }
-  return $self->_occurrence_array;
+  return $self->occurrence_array;
 }
 
 sub group_result {
   my ($group,@fv) = @_;
-  my $occ   = $self->_group_occurrence;
+  my $occ   = $self->group_occurrence;
   return unless($group =~ /\d+/ && defined($occ->[$group]));
   # Exact match;
   my $cmp = Array::Compare->new;
@@ -58,25 +54,21 @@ sub group_result {
 
 sub append_data {
   my $data = shift;
-  $self->_update_single_field($data);
-  $self->_update_group_field($data);
+  $self->update_single_field($data);
+  $self->update_group_field($data);
 }
 
 sub report {
-  for(keys %{$self->_occurrence_hash}) {
-    $self->_report_occurrence_percentage($_);
-  }
-  for(0..@{$self->field_groups}-1) {
-    $self->_report_field_group_occurrence_percentage($_);
-  }
+    require Algorithm::Accounting::Report::Text;
+    Algorithm::Accounting::Report::Text->new->process($self->occurrence_hash,$self->field_groups,$self->group_occurrence);
 }
 
-sub _update_group_field {
+sub update_group_field {
   my $data = shift;
   my $groups = $self->field_groups || return;
-  my $gocc = $self->_group_occurrence;
+  my $gocc = $self->group_occurrence;
   for my $i (0..@$groups-1) {
-    my @index = $self->_position_of($self->fields,$groups->[$i]);
+    my @index = $self->position_of($self->fields,$groups->[$i]);
     for my $row (@$data) {
       my $permutor = Array::Iterator::LOL->new([@$row[@index]]);
       my %exclude;
@@ -92,13 +84,13 @@ sub _update_group_field {
       }
     }
   }
-  $self->_group_occurrence($gocc);
+  $self->group_occurrence($gocc);
 }
 
-sub _update_single_field {
+sub update_single_field {
   my $data = shift;
-  my $aocc = $self->_occurrence_array;
-  my $hocc = $self->_occurrence_hash;
+  my $aocc = $self->occurrence_array;
+  my $hocc = $self->occurrence_hash;
   my $fields = $self->fields;
   for my $i (0..@$fields-1) {
     my $occ = $aocc->[$i] || {};
@@ -113,60 +105,12 @@ sub _update_single_field {
     $aocc->[$i] = $occ;
     $hocc->{$fields->[$i]} = $occ;
   }
-  $self->_occurrence_array($aocc);
-  $self->_occurrence_hash($hocc);
-}
-
-# Do I really have to named it so ?
-sub _report_occurrence_percentage {
-  my $field = shift;
-  my $occ  = $self->_occurrence_hash->{$field};
-  my $rows = sum(values %$occ);
-  my $sep  =  "+===========================================+";
-  print form
-    $sep,
-    "| {>>>>>>>>>>>>>>>>>>>>>>>>} | {>>>>>>>>>>} |",
-       $field,                      'Percentage',
-    $sep;
-
-  for(sort {$occ->{$b} <=> $occ->{$a} } keys %$occ) {
-    print form
-      "| {>>>>>>>>>>>>>>>>>>>>>>>>} | {>>>>>>>>.}% |",
-	$_, (100 * $occ->{$_} / $rows) ;
-  }
-  print form
-    $sep,
-    '| {<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<} |',
-    "Total records: $rows",
-    $sep, "\n";
-}
-
-sub _report_field_group_occurrence_percentage {
-  my $i = shift; # Only the i-th field group
-  my @field = @{$self->field_groups->[$i]};
-  my $occ  = $self->_group_occurrence->[$i];
-  my $rows = sum(values %$occ);
-  local $, = ',';
-
-  my $form_format = '|' . join('|',map {'{<<<<<<<<<<<<}'} @field) . '|{>>>>>>>>>>}|';
-  my $sep = '+' . '=' x (14*(1+@field)) . '+';
-  print form $sep , $form_format, @field, "Percentage",$sep ;
-  $form_format =~ s/>>}\|$/.}%|/;
-  for(sort { (thaw($a))[0] cmp (thaw($b))[0] } keys %$occ) {
-    my @fv = thaw($_);
-    print form
-      $form_format ,
-      @fv, (100 * $occ->{$_} / $rows);
-  }
-  print form $sep;
-  print form
-    '|{' . '<' x (14*(1+@field) - 2) . '}|',
-    "Total records: $rows",
-    $sep, "\n";
+  $self->occurrence_array($aocc);
+  $self->occurrence_hash($hocc);
 }
 
 # Find the position of wanted values in an array
-sub _position_of {
+sub position_of {
   my ($arr,$wanted) = @_;
   my @index;
   for my $w (@$wanted) {
@@ -180,7 +124,6 @@ sub _position_of {
 package Array::Iterator::LOL;
 use Array::Iterator::Reusable;
 use Clone qw(clone);
-use YAML;
 
 sub new {
   my $class = $self;
@@ -212,7 +155,7 @@ sub reset {
   return $self;
 }
 
-sub _get_next {
+sub get_next {
   my $method = shift;
   my $reset = 0;
   my $nlov  = clone($self->{lov});
@@ -238,11 +181,9 @@ sub _get_next {
   return $nlov;
 }
 
-sub peek { $self->_get_next('peek') }
-sub next { $self->_get_next('getNext') }
-sub getNext { $self->_get_next('getNext') }
-
-1;
+sub peek { $self->get_next('peek') }
+sub next { $self->get_next('getNext') }
+sub getNext { $self->get_next('getNext') }
 
 __END__
 
