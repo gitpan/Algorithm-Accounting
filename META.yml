@@ -1,5 +1,5 @@
 name: Algorithm-Accounting
-version: 0.07
+version: 0.08
 abstract: Generate accounting statistic for general logs
 author: Kang-min Liu <gugod@gugod.org>
 license: perl

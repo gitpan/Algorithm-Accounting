@@ -2,7 +2,7 @@ package Algorithm::Accounting;
 use Spiffy -Base;
 use Array::Compare;
 use FreezeThaw qw(freeze thaw);
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 field fields           => [];
 field occurrence_array => [];
@@ -82,7 +82,7 @@ sub update_group_field {
   for my $i (0..@$groups-1) {
     my @index = $self->position_of($self->fields,$groups->[$i]);
     for my $row (@$data) {
-      my $permutor = Array::Iterator::LOL->new([@$row[@index]]);
+      my $permutor = Algorithm::Accounting::Array::Iterator::LOL->new([@$row[@index]]);
       my %exclude;
       while(my $permutation = $permutor->getNext) {
  	my @_row = map {(ref($_) ? $_->[0] : $_)||''} @$permutation;
@@ -133,7 +133,7 @@ sub position_of {
   return @index;
 }
 
-package Array::Iterator::LOL;
+package Algorithm::Accounting::Array::Iterator::LOL;
 use Array::Iterator::Reusable;
 use Clone qw(clone);
 
