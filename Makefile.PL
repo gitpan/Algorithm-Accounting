@@ -9,6 +9,10 @@ requires        ('Spiffy');
 requires        ('Perl6::Form');
 requires        ('Array::Compare');
 requires        ('List::Util');
+requires        ('Array::Iterator::Reusable');
+requires        ('FreezeThaw');
+requires        ('Clone');
+requires        ('YAML');
 build_requires  ('Test::More');
 
 

@@ -5,9 +5,8 @@ use Spiffy '-Base';
 use Perl6::Form;
 use Array::Compare;
 use List::Util qw(sum);
-use List::Permutor::LOL;
 use FreezeThaw qw(freeze thaw);
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 field fields            => [];
 field _occurrence_array => [];
@@ -79,19 +78,17 @@ sub _update_group_field {
   for my $i (0..@$groups-1) {
     my @index = $self->_position_of($self->fields,$groups->[$i]);
     for my $row (@$data) {
-      my $permutor = List::Permutor::LOL->new([@$row[@index]]);
+      my $permutor = Array::Iterator::LOL->new([@$row[@index]]);
       my %exclude;
-      while(my $permutation = $permutor->next) {
-	# Somehow the permutor return empty list, so it's skipped
-	my @_row = map {(ref($_) ? $_->[0] : $_) || next} @$permutation;
-	my $__row = freeze(@_row);
-
-	# One value-tuple would shows only one time,
-	# So it's excluded upon extra permutations.
-	unless($exclude{$__row}) {
-	  $gocc->[$i]->{freeze(@_row)}++;
-	  $exclude{$__row}++;
-	}
+      while(my $permutation = $permutor->getNext) {
+ 	my @_row = map {(ref($_) ? $_->[0] : $_)||''} @$permutation;
+ 	my $__row = freeze(@_row);
+ 	# One value-tuple would shows only one time,
+ 	# So it's excluded upon extra permutations.
+ 	unless($exclude{$__row}) {
+ 	  $gocc->[$i]->{freeze(@_row)}++;
+ 	  $exclude{$__row}++;
+ 	}
       }
     }
   }
@@ -125,18 +122,23 @@ sub _report_occurrence_percentage {
   my $field = shift;
   my $occ  = $self->_occurrence_hash->{$field};
   my $rows = sum(values %$occ);
+  my $sep  =  "+===========================================+";
   print form
-    "+===========================================+",
+    $sep,
     "| {>>>>>>>>>>>>>>>>>>>>>>>>} | {>>>>>>>>>>} |",
        $field,                      'Percentage',
-    "+===========================================+";
+    $sep;
 
   for(sort {$occ->{$b} <=> $occ->{$a} } keys %$occ) {
     print form
       "| {>>>>>>>>>>>>>>>>>>>>>>>>} | {>>>>>>>>.}% |",
 	$_, (100 * $occ->{$_} / $rows) ;
   }
-  print form "+===========================================+";
+  print form
+    $sep,
+    '| {<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<} |',
+    "Total records: $rows",
+    $sep, "\n";
 }
 
 sub _report_field_group_occurrence_percentage {
@@ -157,7 +159,10 @@ sub _report_field_group_occurrence_percentage {
       @fv, (100 * $occ->{$_} / $rows);
   }
   print form $sep;
-  print STDERR "[$rows]\n";
+  print form
+    '|{' . '<' x (14*(1+@field) - 2) . '}|',
+    "Total records: $rows",
+    $sep, "\n";
 }
 
 # Find the position of wanted values in an array
@@ -171,6 +176,71 @@ sub _position_of {
   }
   return @index;
 }
+
+package Array::Iterator::LOL;
+use Array::Iterator::Reusable;
+use Clone qw(clone);
+use YAML;
+
+sub new {
+  my $class = $self;
+  $self = {};
+  bless $self,$class;
+  my $lol = shift;
+  my @lolp; # list of Array::Iterator::Reusable
+  for (@$lol) {
+     if(ref($_)) {
+       push @lolp, Array::Iterator::Reusable->new($_);
+     } else {
+       push @lolp, Array::Iterator::Reusable->new([$_]);
+     }
+  }
+  $self->{lol}  = $lol;
+  $self->{lolp} = \@lolp ;
+  $self->reset();
+  return $self;
+}
+
+sub reset {
+  $_->reset for @{$self->{lolp}};
+  my @lov;
+  push @lov, $self->{lolp}->[0]->peek;
+  for my $i (1..@{$self->{lolp}}-1) {
+    push @lov,$self->{lolp}->[$i]->getNext;
+  }
+  $self->{lov} = \@lov;
+  return $self;
+}
+
+sub _get_next {
+  my $method = shift;
+  my $reset = 0;
+  my $nlov  = clone($self->{lov});
+  for my $i (0..@{$self->{lolp}}-1) {
+    if($self->{lolp}->[$i]->hasNext) {
+      $nlov->[$i] = $self->{lolp}->[$i]->$method;
+      last;
+    } else {
+      my $_index;
+      $_index= $self->{lol}->[$i]->{_current_index}
+	if($method eq 'peek');
+
+      $reset++;
+      $self->{lolp}->[$i]->reset;
+      $nlov->[$i] = $self->{lolp}->[$i]->getNext || '(DUMMY)';
+
+      $self->{lol}->[$i]->{_current_index} = $_index
+	if($method eq 'peek');
+    }
+  }
+  return if($reset == @{$self->{lolp}});
+  $self->{lov} = $nlov if($method eq 'getNext');
+  return $nlov;
+}
+
+sub peek { $self->_get_next('peek') }
+sub next { $self->_get_next('getNext') }
+sub getNext { $self->_get_next('getNext') }
 
 1;
 

@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-use Test::More tests => 6;
+use Test::More tests => 7;
 
 use Algorithm::Accounting;
 
@@ -11,7 +11,7 @@ my $data = [
 	    [2, 'bob',   '/foo.txt', '2004-05-03' ],
 	    [3, 'alice', '/foo.txt', '2004-05-04' ],
 	    [4, 'john', '/foo.txt', '2004-05-04' ],
-	    [5, 'alice', '/bar.txt', '2004-05-04' ],
+	    [5, 'alice', ['/jar.txt','/bar.txt'], '2004-05-04' ],
 	   ];
 
 my $acc = Algorithm::Accounting->new();
@@ -32,8 +32,10 @@ use YAML;
 my $group0 = $acc->group_result(0);
 is($group0->{alice}{'/foo.txt'} , 2);
 is($group0->{alice}{'/bar.txt'} , 1);
+is($group0->{alice}{'/jar.txt'} , 1);
 is($group0->{bob}{'/foo.txt'} , 1);
 
 is($acc->group_result(0,'alice','/foo.txt') , 2);
+
 
 
