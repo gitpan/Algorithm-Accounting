@@ -7,6 +7,7 @@ license         ('perl');
 version_from    ('lib/Algorithm/Accounting.pm');
 requires        ('Spiffy');
 requires        ('Perl6::Form');
+requires        ('Array::Compare');
 build_requires  ('Test::More');
 
 
