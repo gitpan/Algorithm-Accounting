@@ -2,7 +2,7 @@ package Algorithm::Accounting;
 use Spiffy -Base;
 use Array::Compare;
 use FreezeThaw qw(freeze thaw);
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 field fields           => [];
 field occurrence_array => [];
@@ -14,6 +14,8 @@ field field_groups     => [];
 # array of hashref, but the key of hashref is
 # in serialized(freezed) form.
 field group_occurrence => [];
+
+field 'report_class' => 'Algorithm::Accounting::Report::Text';
 
 sub reset {
   $self->fields([]);
@@ -59,8 +61,18 @@ sub append_data {
 }
 
 sub report {
-    require Algorithm::Accounting::Report::Text;
-    Algorithm::Accounting::Report::Text->new->process($self->occurrence_hash,$self->field_groups,$self->group_occurrence);
+    my $class = $self->report_class;
+    my $obj;
+    eval qq{
+        require $class;
+        \$obj = $class->new;
+    };
+    die"report() error\n" if $@;
+    $obj->process(
+        $self->occurrence_hash,
+        $self->field_groups,
+        $self->group_occurrence
+       );
 }
 
 sub update_group_field {

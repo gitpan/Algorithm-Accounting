@@ -13,6 +13,8 @@ requires        ('Array::Iterator::Reusable');
 requires        ('FreezeThaw');
 requires        ('Clone');
 requires        ('YAML');
+requires	('Imager::Graph::Pie');
+requires	('GD::Graph');
 build_requires  ('Test::More');
 
 

@@ -1,19 +1,10 @@
 package Algorithm::Accounting::Report::Text;
 use Algorithm::Accounting::Report -Base;
 use Perl6::Form;
+use FreezeThaw qw(thaw);
 use List::Util qw(sum);
 
-our $VERSION = '0.01';
-
-sub process {
-    my ($occhash,$field_groups,$group_occ) = @_;
-    for(keys %{$occhash}) {
-        $self->report_occurrence_percentage($_,$occhash);
-    }
-    for(0..@{$field_groups}-1) {
-        $self->report_field_group_occurrence_percentage($_,$field_groups,$group_occ);
-    }
-}
+our $VERSION = '0.02';
 
 # Do I really have to named it so ?
 sub report_occurrence_percentage {

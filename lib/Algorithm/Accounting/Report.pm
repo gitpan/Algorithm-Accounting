@@ -1,8 +1,16 @@
 package Algorithm::Accounting::Report;
-use strict;
-use warnings;
 use Spiffy -Base;
-our $VERSION = '0.01';
+our $VERSION = '0.02';
+
+sub process {
+    my ($occhash,$field_groups,$group_occ) = @_;
+    for(keys %{$occhash}) {
+        $self->report_occurrence_percentage($_,$occhash);
+    }
+    for(0..@{$field_groups}-1) {
+        $self->report_field_group_occurrence_percentage($_,$field_groups,$group_occ);
+    }
+}
 
 __END__
 =head1 NAME
